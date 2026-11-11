@@ -44,7 +44,7 @@ To test the microphone from a phone on the LAN, open `https://<your-pc-ip>:5173`
 | Supabase Studio (create users, edit orders/stock/invoices) | http://localhost:54323 |
 | Postgres | 127.0.0.1:54322 (tests use the `setero_pytest` database, created automatically) |
 
-Create Laura's and Manolo's users in Studio → Authentication → Users (sign-up is disabled).
+Create users in Studio → Authentication → Users (sign-up is disabled).
 
 ## End-to-end environment
 
