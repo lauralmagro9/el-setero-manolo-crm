@@ -1,0 +1,177 @@
+# Default values (safe to commit). Do NOT put real secrets here:
+# override them in .env or with environment variables.
+#
+# Each key is overridden by an environment variable named after the key path,
+# upper-cased and joined with "_":
+#   [database] url         ->  DATABASE_URL
+#   [services] groq_api    ->  SERVICES_GROQ_API
+
+[database]
+# Required: set them in .env (local Supabase: see .env.example). In production, use the
+# Supabase pooler URL.
+url = ""
+# Database used by pytest; created automatically if missing (same server as `url`)
+test_url = ""
+
+[inventory]
+# Default unit for products, lots and order lines
+default_unit = "kg"
+
+
+[issuer]
+# Seller data printed on the invoices. Real values go in .env (ISSUER_NAME, ISSUER_TAX_ID, ISSUER_ADDRESS)
+holder_label = "Agricultor titular de la explotación"
+name = ""
+tax_id = ""
+address_label = "Dirección de la explotación"
+address = ""
+# Logo printed on the invoices, relative to the project root
+logo_file = "assets/logo.png"
+
+[invoicing]
+# VAT applied to every line (fraction: 0.10 = 10 %)
+vat_rate = 0.10
+# Series that can be issued today; the others exist in the database but are not offered yet
+enabled_types = ["VDA"]
+# Number format: <prefix>-<year>-<sequence>, one sequence per series and year
+sequence_digits = 4
+
+# Number prefix and title of each series (key = value of InvoiceType)
+[invoicing.series]
+VDA = "VDA"
+Agrario = "AGR"
+Empresa = "EMP"
+
+[invoicing.titles]
+VDA = "Factura Venta Directa"
+Agrario = "Factura Agraria"
+Empresa = "Factura"
+
+[email]
+# When false, invoices are saved with email status "pending" and nothing is sent (dev default)
+enabled = false
+smtp_host = ""
+smtp_port = 587
+smtp_username = ""
+# Secret: set EMAIL_SMTP_PASSWORD in .env
+smtp_password = ""
+# Port 587 with STARTTLS (default) or port 465 with smtp_ssl = true (implicit TLS, e.g. Hostinger)
+smtp_starttls = true
+smtp_ssl = false
+smtp_timeout_seconds = 30
+sender = ""
+# Address that receives every invoice (the customer is not emailed)
+invoice_recipient = ""
+invoice_subject = "Factura {number}"
+invoice_body = "Adjuntamos la factura {number} emitida a {customer} por un total de {total}."
+
+[audit]
+# Recorded in created_by when no user is logged in (scripts, agents, seed)
+default_actor = "system"
+
+[security]
+# Supabase roles that must NOT access the data directly (only the backend may)
+api_roles = ["anon", "authenticated"]
+
+[supabase]
+# Supabase Auth: the API validates the JWT of every request against these keys
+url = "http://127.0.0.1:54321"
+jwks_url = "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
+jwt_audience = "authenticated"
+# Accepted signing algorithms for asymmetric keys (read from jwks_url)
+jwks_algorithms = ["ES256", "RS256"]
+# Only for projects still using the legacy shared secret (HS256); leave empty otherwise
+jwt_secret = ""
+
+[api]
+title = "El Setero Manolo CRM"
+# Origins allowed by CORS (not needed when the frontend is served by the API itself)
+cors_origins = ["http://localhost:5173", "https://localhost:5173"]
+# Folder with the built frontend (frontend/dist) to serve from FastAPI; empty = do not serve
+static_dir = ""
+default_page_size = 25
+max_page_size = 100
+
+[geocoding]
+# Address lookup used to fill city, province and country (Nominatim / OpenStreetMap-compatible).
+# Set enabled = false to skip it; the user can always type the fields by hand.
+enabled = true
+url = "https://nominatim.openstreetmap.org/search"
+# Nominatim's usage policy requires an identifying User-Agent
+user_agent = "el-setero-manolo-crm"
+language = "es"
+timeout_seconds = 5
+# Keys of the result "address" object, in order of preference, for each field
+city_keys = ["city", "town", "village", "municipality", "hamlet"]
+region_keys = ["province", "state_district", "county", "state"]
+
+[logging]
+# Level of the application's logs (DEBUG, INFO, WARNING, ERROR) and their format
+level = "INFO"
+format = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+
+[e2e]
+# Local deployment used by the end-to-end test (pytest -m e2e). It EMPTIES the database in
+# database.url (every table of `public` except preserved_tables), loads the seed data, builds the
+# frontend and serves everything from one uvicorn process.
+host = "127.0.0.1"
+port = 8010
+# The database host must be one of these: the e2e test refuses to wipe a remote database
+allowed_database_hosts = ["127.0.0.1", "localhost", "::1"]
+# Tables that survive the cleanup (the Supabase credentials live in the `auth` schema, never touched)
+preserved_tables = ["alembic_version"]
+# Frontend folder (relative to the project root) and the command that builds it
+frontend_dir = "frontend"
+build_command = ["npm", "run", "build"]
+# Where the running app's pid and output are kept (relative to the project root)
+pid_file = ".e2e/server.pid"
+log_file = ".e2e/server.log"
+build_timeout_seconds = 600
+startup_timeout_seconds = 60
+
+[dashboard]
+# Windows (in days) for the interaction counters
+short_window_days = 7
+long_window_days = 30
+# A lot is "expiring soon" when it expires within this many days
+expiry_alert_days = 14
+# A lot is "low stock" when its available quantity is at or below this value
+low_stock_threshold = 2
+recent_activity_limit = 10
+
+[voice_notes]
+max_size_mb = 10
+# Parameters such as ";codecs=opus" are ignored when matching
+allowed_mime_types = [
+    "audio/webm",
+    "audio/ogg",
+    "audio/mp4",
+    "audio/aac",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-m4a",
+]
+# Interaction type used when the user does not choose one
+default_interaction_type = "Otro"
+
+
+[transcription]
+groq_api_key = ""
+# Groq speech-to-text model
+model = "whisper-large-v3-turbo"
+timeout_seconds = 90
+# ISO-639-1 code of the spoken language (improves accuracy and latency)
+language = "es"
+# 0 = deterministic output
+temperature = 0.0
+# Groq detects the audio format from the file name extension
+default_extension = "webm"
+
+[transcription.file_extensions]
+"audio/webm" = "webm"
+"audio/ogg" = "ogg"
+"audio/mp4" = "mp4"
+"audio/aac" = "m4a"
+"audio/x-m4a" = "m4a"
+"audio/mpeg" = "mp3"
+"audio/wav" = "wav"
