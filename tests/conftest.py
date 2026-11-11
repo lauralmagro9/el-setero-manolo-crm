@@ -16,6 +16,16 @@ from tests.utils.auth import generate_key, make_token
 from tests.utils.database import ensure_database
 
 
+def pytest_configure(config):
+    """Abort the whole run when APP_ENVIRONMENT is the protected one (prod): tests wipe databases."""
+    if settings.app.environment == settings.app.protected_environment:
+        pytest.exit(
+            f"Tests are blocked when APP_ENVIRONMENT={settings.app.environment!r}; "
+            "run them with APP_ENVIRONMENT=dev",
+            returncode=2,
+        )
+
+
 def pytest_collection_modifyitems(config, items):
     """List the e2e tests everywhere but skip them unless they were selected on purpose.
 
@@ -124,6 +134,10 @@ def sent_emails(monkeypatch):
 def toml_file(tmp_path):
     """Return the path of a small settings.toml written in a temporary folder."""
     SETTINGS_TOML = """
+        [app]
+        environment = "dev"
+        allowed_environments = ["dev", "prod"]
+
         [database]
         url = "sqlite:///default.db"
 

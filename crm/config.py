@@ -92,6 +92,18 @@ def _apply_overrides(data: dict[str, Any], env: dict[str, str | None], prefix: t
             data[key] = _coerce(raw, default, name)
 
 
+def _validate_environment(data: dict[str, Any]) -> None:
+    """Fail fast if [app] environment is not one of [app] allowed_environments (if the section exists)."""
+    app = data.get("app")
+    if app is None:
+        return
+    if app["environment"] not in app["allowed_environments"]:
+        raise ValueError(
+            f"Valor inválido para APP_ENVIRONMENT: {app['environment']!r} "
+            f"(permitidos: {', '.join(app['allowed_environments'])})"
+        )
+
+
 def load_settings(
     settings_file: Path = SETTINGS_FILE,
     env_file: Path | None = ENV_FILE,
@@ -105,6 +117,7 @@ def load_settings(
         env.update(dotenv_values(env_file))
     env.update(os.environ if environ is None else environ)
     _apply_overrides(data, env)
+    _validate_environment(data)
     return Section(data)
 
 

@@ -41,3 +41,8 @@ RUN poetry install
 COPY tests ./tests
 HEALTHCHECK NONE
 CMD ["pytest", "-q"]
+
+# ---- production: must stay the LAST stage, so a build without --target (hosting providers) ---
+# ---- yields the app and never the test suite. Build the tests with `--target tests`. ---------
+FROM app AS production
+ENV APP_ENVIRONMENT=prod
