@@ -2,6 +2,5 @@
 .venv/
 __pycache__/
 *.db
-*.log
 *.pid
 
