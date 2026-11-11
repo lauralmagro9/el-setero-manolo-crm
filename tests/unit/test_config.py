@@ -54,3 +54,18 @@ class TestLoadSettings:
         s = load_settings(toml_file, None, environ={"SOMETHING_ELSE": "1"})
         with pytest.raises(AttributeError):
             s.services.does_not_exist
+
+    def test_7_environment_defaults_to_dev(self, toml_file):
+        """Without APP_ENVIRONMENT the environment is the one in settings.toml."""
+        s = load_settings(toml_file, None, environ={})
+        assert s.app.environment == "dev"
+
+    def test_8_app_environment_variable(self, toml_file):
+        """APP_ENVIRONMENT overrides [app] environment."""
+        s = load_settings(toml_file, None, environ={"APP_ENVIRONMENT": "prod"})
+        assert s.app.environment == "prod"
+
+    def test_9_unknown_environment_raises(self, toml_file):
+        """An environment outside allowed_environments is rejected."""
+        with pytest.raises(ValueError, match="APP_ENVIRONMENT"):
+            load_settings(toml_file, None, environ={"APP_ENVIRONMENT": "staging"})

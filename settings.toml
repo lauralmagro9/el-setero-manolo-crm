@@ -6,6 +6,14 @@
 #   [database] url         ->  DATABASE_URL
 #   [services] groq_api    ->  SERVICES_GROQ_API
 
+[app]
+# Where the app runs: one of `allowed_environments`. Set APP_ENVIRONMENT=prod on the server.
+# In prod the test suite refuses to run, so it can never touch the production database.
+environment = "dev"
+allowed_environments = ["dev", "prod"]
+# Environment in which the test suite is blocked
+protected_environment = "prod"
+
 [database]
 # Required: set them in .env (local Supabase: see .env.example). In production, use the
 # Supabase pooler URL.
