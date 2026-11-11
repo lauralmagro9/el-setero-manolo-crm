@@ -1,6 +1,6 @@
 # El Setero Manolo CRM
 
-Central database and API of the business (see `../El_Setero_Manolo_Data_Model_v2.xlsx` and `../Background El Setero Manolo.txt`).
+Central database and API of the business.
 
 - **Database**: Postgres. Development runs on Supabase local (Docker); production on Supabase cloud. Alembic owns the `public` schema.
 - **Auth**: Supabase Auth (email + password, public sign-up disabled). The API validates the Supabase JWT on every `/api` call.
