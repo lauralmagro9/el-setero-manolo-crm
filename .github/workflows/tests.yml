@@ -1,0 +1,39 @@
+name: Tests
+
+# Render deploys only when this workflow passes (Render: Settings > Build & Deploy >
+# Auto-Deploy > "After CI Checks Pass").
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      # Throwaway database: the tests drop and recreate its tables
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the tests image
+        run: docker build --target tests -t crm-tests .
+
+      - name: Run the test suite
+        run: >-
+          docker run --rm --network host
+          -e APP_ENVIRONMENT=dev
+          -e DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/crm_test
+          crm-tests
