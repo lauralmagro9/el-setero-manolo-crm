@@ -1,7 +1,24 @@
 """Helpers to prepare the test database."""
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import Engine, MetaData, create_engine, inspect, text
 from sqlalchemy.engine import make_url
+
+
+def reset_alembic_version(engine: Engine) -> None:
+    """Set Alembic back to base (no revision) so the next `alembic upgrade head` rebuilds the schema.
+
+    Call it after every `drop_all`: otherwise the tables are gone but `alembic_version` still says
+    head, and the migration does nothing.
+    """
+    if inspect(engine).has_table("alembic_version"):
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM alembic_version"))
+
+
+def drop_all_tables(engine: Engine, metadata: MetaData) -> None:
+    """Drop every table in `metadata` and reset Alembic to base so the database can be rebuilt."""
+    metadata.drop_all(engine)
+    reset_alembic_version(engine)
 
 
 def ensure_database(url: str) -> None:

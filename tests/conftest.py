@@ -13,7 +13,7 @@ from crm.services import transcription
 from crm.views import create_views, drop_views
 
 from tests.utils.auth import generate_key, make_token
-from tests.utils.database import ensure_database
+from tests.utils.database import drop_all_tables, ensure_database
 
 
 def pytest_configure(config):
@@ -45,12 +45,12 @@ def pytest_collection_modifyitems(config, items):
 def engine():
     """Yield an engine on the test database with all tables and views, and clean it afterwards."""
     # Never the app database: drop_all would remove its tables and leave alembic_version at head
-    ensure_database(settings.database.test_url)
-    engine = get_engine(settings.database.test_url)
+    ensure_database(settings.database.url)
+    engine = get_engine(settings.database.url)
     # Start from a clean slate even if a previous run was interrupted
     with engine.begin() as conn:
         drop_views(conn)
-    m.Base.metadata.drop_all(engine)
+    drop_all_tables(engine, m.Base.metadata)
     m.Base.metadata.create_all(engine)
     with engine.begin() as conn:
         create_views(conn)
@@ -58,7 +58,7 @@ def engine():
     yield engine
     with engine.begin() as conn:
         drop_views(conn)
-    m.Base.metadata.drop_all(engine)
+    drop_all_tables(engine, m.Base.metadata)
     engine.dispose()
 
 
