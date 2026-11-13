@@ -13,7 +13,8 @@ from crm.services import transcription
 from crm.views import create_views, drop_views
 
 from tests.utils.auth import generate_key, make_token
-from tests.utils.database import ensure_database
+from tests.utils.database import drop_all_tables, ensure_database
+from tests.utils.llm import ScriptedLLM
 
 
 def pytest_configure(config):
@@ -32,25 +33,30 @@ def pytest_collection_modifyitems(config, items):
     They empty the app database, so running the whole suite (or "Run all" in the test explorer)
     must not trigger them: use `-m e2e`, the tests/e2e path or a single test's node id.
     """
-    selected = "e2e" in (config.getoption("markexpr") or "") or any("e2e" in str(arg) for arg in config.args)
-    if selected:
-        return
-    skip = pytest.mark.skip(reason="e2e wipes the database: run it with `pytest -m e2e` or select it explicitly")
+    markexpr = config.getoption("markexpr") or ""
+    args = [str(arg) for arg in config.args]
+    skip_e2e = not ("e2e" in markexpr or any("e2e" in arg for arg in args))
+    # The llm tests call the real model (tokens, network): same rule, `-m llm` or the tests/dev path
+    skip_llm = not ("llm" in markexpr or any("dev" in arg.replace("\\", "/").split("/") for arg in args))
     for item in items:
-        if "e2e" in item.keywords:
-            item.add_marker(skip)
+        if skip_e2e and "e2e" in item.keywords:
+            item.add_marker(pytest.mark.skip(
+                reason="e2e wipes the database: run it with `pytest -m e2e` or select it explicitly"))
+        if skip_llm and "llm" in item.keywords:
+            item.add_marker(pytest.mark.skip(
+                reason="calls the real model: run it with `pytest -m llm` or `pytest tests/dev`"))
 
 
 @pytest.fixture
 def engine():
     """Yield an engine on the test database with all tables and views, and clean it afterwards."""
     # Never the app database: drop_all would remove its tables and leave alembic_version at head
-    ensure_database(settings.database.test_url)
-    engine = get_engine(settings.database.test_url)
+    ensure_database(settings.database.url)
+    engine = get_engine(settings.database.url)
     # Start from a clean slate even if a previous run was interrupted
     with engine.begin() as conn:
         drop_views(conn)
-    m.Base.metadata.drop_all(engine)
+    drop_all_tables(engine, m.Base.metadata)
     m.Base.metadata.create_all(engine)
     with engine.begin() as conn:
         create_views(conn)
@@ -58,7 +64,7 @@ def engine():
     yield engine
     with engine.begin() as conn:
         drop_views(conn)
-    m.Base.metadata.drop_all(engine)
+    drop_all_tables(engine, m.Base.metadata)
     engine.dispose()
 
 
@@ -150,3 +156,16 @@ def toml_file(tmp_path):
     path = tmp_path / "settings.toml"
     path.write_text(SETTINGS_TOML, encoding="utf8")
     return path
+
+
+@pytest.fixture
+def scripted_llm():
+    """Return the ScriptedLLM class: build one with the replies the agent should receive."""
+    return ScriptedLLM
+
+
+@pytest.fixture
+def groq_key(monkeypatch):
+    """Pretend the Groq key is configured (no call is ever made: the agents get a scripted model)."""
+    monkeypatch.setitem(settings.transcription.as_dict(), "api_key", "test-key")
+

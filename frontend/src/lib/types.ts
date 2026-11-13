@@ -107,6 +107,7 @@ export interface Product {
   is_active: boolean
   tax_rate: string // fraction: 0.10 = 10 %
   target_net_margin: string // fraction
+  aliases: string[] // other names customers use (the order agent matches them)
 }
 
 export interface InvoiceTotals {
@@ -194,4 +195,104 @@ export interface Dashboard {
   expiring_lots: LotAlert[]
   low_stock_lots: LotAlert[]
   recent_interactions: Interaction[]
+}
+
+export const ALERT_TYPES = ['stock_insuficiente', 'lote_por_caducar', 'stock_bajo', 'nota_en_revision', 'pedido_sin_fecha_entrega', 'nota_procesada', 'pedido_incompleto'] as const
+export type AlertType = (typeof ALERT_TYPES)[number]
+export type AlertSeverity = 'info' | 'aviso' | 'critico'
+
+export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
+  stock_insuficiente: 'Stock insuficiente',
+  lote_por_caducar: 'Lote por caducar',
+  stock_bajo: 'Poco stock',
+  nota_en_revision: 'Nota por revisar',
+  pedido_sin_fecha_entrega: 'Pedido sin fecha de entrega',
+  nota_procesada: 'Nota procesada',
+  pedido_incompleto: 'Pedido incompleto',
+}
+
+/** An alert raised by an agent (`data.suggested_companies` lists who to offer an expiring lot to). */
+export interface Alert {
+  id: string
+  type: AlertType
+  severity: AlertSeverity
+  message: string
+  product_id: string | null
+  lot_id: string | null
+  company_id: string | null
+  order_id: string | null
+  interaction_id: string | null
+  data: {
+    suggested_companies?: { company_id: string; name: string; reason: string }[]
+    draft_id?: string; reason?: string | null
+    company_name?: string | null; contact_id?: string | null; contact_name?: string | null
+  } | null
+  read_at: string | null
+  created_at: string
+}
+
+/** Result of processing the pending voice notes. */
+export interface OrderAgentRun {
+  processed: number
+  orders_created: number
+  needs_review: number
+  errors: number
+}
+
+
+export const ORDER_STATUSES = [
+  'Nuevo', 'Acordando precio', 'Esperando confirmación', 'Confirmado', 'Entregado', 'Cancelado',
+] as const
+export type OrderStatus = (typeof ORDER_STATUSES)[number]
+
+export interface OrderItem {
+  id: string
+  product_id: string
+  product_name: string
+  quantity: string
+  unit: string
+  notes: string | null
+  agreed_unit_price_after_tax: string | null
+}
+
+export interface Order {
+  id: string
+  company_id: string
+  contact_id: string | null
+  requested_at: string
+  requested_delivery_date: string | null
+  status: OrderStatus
+  notes: string | null
+  source_interaction_id: string | null
+  created_by_agent: boolean
+  created_by: string | null
+  company: CompanyRef
+  contact: ContactRef | null
+  items: OrderItem[]
+}
+
+/** A line of a draft; every field may be unknown yet (`product_name` is what the customer said). */
+export interface DraftItem {
+  product_id: string | null
+  product_name: string | null
+  quantity: string | null
+  unit: string | null
+}
+
+/** An order found in a voice note with data missing: the user completes it and the order is created. */
+export interface OrderDraft {
+  id: string
+  interaction_id: string | null
+  company_id: string | null
+  contact_id: string | null
+  requested_delivery_date: string | null
+  notes: string | null
+  reason: string | null
+  status: 'pendiente' | 'completada' | 'descartada'
+  order_id: string | null
+  items: DraftItem[]
+  missing: string[]
+  transcript: string | null
+  company: CompanyRef | null
+  contact: ContactRef | null
 }

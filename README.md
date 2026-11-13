@@ -66,6 +66,14 @@ Facturas → Nueva factura issues an invoice without an order. An invoice belong
 - Seller data (`ISSUER_NAME`, `ISSUER_TAX_ID`, `ISSUER_ADDRESS`) and the logo (`assets/logo.png`) are printed on the PDF; without them no invoice can be issued.
 - Email: set `EMAIL_ENABLED=true`, `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_SSL` (true for port 465), `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, `EMAIL_SENDER` and `EMAIL_INVOICE_RECIPIENT` in `.env`. Every invoice is sent to that configured address (the customer is not emailed; the invoice carries no email or phone). Status: `pending` (email disabled or not sent yet), `sent`, `failed` (the invoice is kept; use *Enviar* to retry).
 
+## Agents and alerts
+
+Two agents (`crm/services/agents/`, settings in `[agents]`) leave an `AgentExecution` row per run and write as `system`.
+
+- **Order agent** (`order_agent.py`): after `POST /api/voice-notes` a background task reads the pending voice note with a Groq model (`[agents] model`, key `TRANSCRIPTION_GROQ_API_KEY`) that calls tools (`find_contact`, `find_product`, `create_order`, `link_interaction`, `flag_for_review`). The order is created with `created_by_agent=true` and `source_interaction_id`. When anything is ambiguous (two contacts with the same name, unknown product, doubtful quantity) it creates no order: it raises a `nota_en_revision` alert. A missing delivery date is not ambiguity: the order is created without it and a `pedido_sin_fecha_entrega` alert asks the user to fill it in. Without a key the note stays `pendiente`; retry with `POST /api/agents/process-pending` (button on the home screen) or `python -m crm.run_agents orders`. `Product.aliases` ("chantarelas" for "rebozuelos") are matched too.
+- **Stock agent** (`stock_agent.py`, plain queries, no model): open orders vs. available stock, lots expiring within `[dashboard] expiry_alert_days` (with the customers who bought that product or are interested) and low stock. A model only words the alert text (`[agents.stock] use_llm_for_text`). One alert per type + entity + day (`dedupe_key`). Run it with `POST /api/agents/run-stock` or from a daily cron: `python -m crm.run_agents stock`.
+- Alerts: `GET /api/alerts`, `POST /api/alerts/{id}/read`; the bell in the menu counts the unread ones and the home screen lists them.
+
 ## Audit columns and soft delete
 
 Every table inherits these columns from `Base` (`models.py`), so a new table gets them without writing anything: `created_at`, `modified_at`, `created_by` (all NOT NULL), and `deleted_at` / `deleted_by`.

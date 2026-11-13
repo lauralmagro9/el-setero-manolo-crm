@@ -302,6 +302,7 @@ class ProductIn(BaseModel):
     is_active: bool = True
     tax_rate: Decimal = Field(default_factory=lambda: Decimal(str(settings.invoicing.vat_rate)), ge=0, lt=1, decimal_places=4)
     target_net_margin: Decimal = Field(ge=0, lt=1, decimal_places=4)
+    aliases: list[str] = Field(default_factory=list)
 
 
 class ProductUpdate(BaseModel):
@@ -315,8 +316,9 @@ class ProductUpdate(BaseModel):
     is_active: bool | None = None
     tax_rate: Decimal | None = Field(default=None, ge=0, lt=1, decimal_places=4)
     target_net_margin: Decimal | None = Field(default=None, ge=0, lt=1, decimal_places=4)
+    aliases: list[str] | None = None
 
-    @field_validator("name", "format", "base_unit", "is_active", "tax_rate", "target_net_margin")
+    @field_validator("name", "format", "base_unit", "is_active", "tax_rate", "target_net_margin", "aliases")
     @classmethod
     def _not_null(cls, value):
         """Required columns can be changed but not emptied."""
@@ -337,6 +339,7 @@ class ProductOut(ORMModel):
     is_active: bool
     tax_rate: Decimal
     target_net_margin: Decimal
+    aliases: list[str]
 
 
 # ---------------------------------------------------------------------- Invoices
@@ -459,3 +462,169 @@ class InvoiceOut(ORMModel):
     created_by: str | None
     items: list[InvoiceLineOut]
     totals: InvoiceTotals | None = None
+
+
+# ------------------------------------------------------------------------ Alerts
+
+
+class AlertOut(ORMModel):
+    """An alert raised by an agent."""
+
+    id: uuid.UUID
+    type: e.AlertType
+    severity: e.AlertSeverity
+    message: str
+    product_id: uuid.UUID | None
+    lot_id: uuid.UUID | None
+    company_id: uuid.UUID | None
+    order_id: uuid.UUID | None
+    interaction_id: uuid.UUID | None
+    data: dict | None
+    read_at: datetime | None
+    created_at: datetime
+
+
+class UnreadCount(BaseModel):
+    """Number of alerts the user has not read yet."""
+
+    unread: int
+
+
+# ------------------------------------------------------------------------ Orders
+
+
+class OrderItemOut(ORMModel):
+    """One line of an order."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    product_name: str
+    quantity: Decimal
+    unit: str
+    notes: str | None
+    agreed_unit_price_after_tax: Decimal | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _product_name(cls, value):
+        """Fill the product name from the related product when built from an ORM object."""
+        if hasattr(value, "product"):
+            return {
+                "id": value.id, "product_id": value.product_id, "product_name": value.product.name,
+                "quantity": value.quantity, "unit": value.unit, "notes": value.notes,
+                "agreed_unit_price_after_tax": value.agreed_unit_price_after_tax,
+            }
+        return value
+
+
+class OrderOut(ORMModel):
+    """An order with its lines."""
+
+    id: uuid.UUID
+    company_id: uuid.UUID
+    contact_id: uuid.UUID | None
+    requested_at: datetime
+    requested_delivery_date: date | None
+    status: e.OrderStatus
+    notes: str | None
+    source_interaction_id: uuid.UUID | None
+    created_by_agent: bool
+    created_by: str | None
+    company: CompanyRef
+    contact: ContactRef | None
+    items: list[OrderItemOut]
+
+
+class OrderItemIn(BaseModel):
+    """A line of an order being edited: with `id` it changes that line, without it a line is added."""
+
+    id: uuid.UUID | None = None
+    product_id: uuid.UUID
+    quantity: Decimal = Field(gt=0)
+    unit: str | None = None
+
+
+class OrderUpdate(BaseModel):
+    """Partial update of an order (customer, delivery date, status, notes, lines).
+
+    When `items` is sent it is the full list of lines: the ones left out are removed.
+    """
+
+    company_id: uuid.UUID | None = None
+    contact_id: uuid.UUID | None = None
+    requested_delivery_date: date | None = None
+    status: e.OrderStatus | None = None
+    notes: str | None = None
+    items: list[OrderItemIn] | None = None
+
+    @field_validator("company_id", "status", "items")
+    @classmethod
+    def _not_null(cls, value):
+        """Required columns can be changed but not emptied."""
+        if value is None:
+            raise ValueError("No puede ser nulo")
+        return value
+
+
+# ------------------------------------------------------------------- Order drafts
+
+
+class DraftItem(BaseModel):
+    """A line of a draft; every field may still be unknown."""
+
+    product_id: uuid.UUID | None = None
+    product_name: str | None = None  # what the customer said
+    quantity: Decimal | None = None
+    unit: str | None = None
+
+
+class OrderDraftUpdate(BaseModel):
+    """Partial update of a draft; `items`, when sent, replaces all the lines."""
+
+    company_id: uuid.UUID | None = None
+    contact_id: uuid.UUID | None = None
+    requested_delivery_date: date | None = None
+    notes: str | None = None
+    items: list[DraftItem] | None = None
+
+    @field_validator("items")
+    @classmethod
+    def _not_null(cls, value):
+        """The list of lines can be emptied but not nulled."""
+        if value is None:
+            raise ValueError("No puede ser nulo")
+        return value
+
+
+class OrderDraftOut(BaseModel):
+    """A draft with what is still missing and the note it comes from."""
+
+    id: uuid.UUID
+    interaction_id: uuid.UUID | None
+    company_id: uuid.UUID | None
+    contact_id: uuid.UUID | None
+    requested_delivery_date: date | None
+    notes: str | None
+    reason: str | None
+    status: e.OrderDraftStatus
+    order_id: uuid.UUID | None
+    items: list[DraftItem]
+    missing: list[str]
+    transcript: str | None
+    company: CompanyRef | None
+    contact: ContactRef | None
+
+
+class OrderAgentRunOut(BaseModel):
+    """Result of processing the pending voice notes."""
+
+    processed: int
+    orders_created: int
+    needs_review: int
+    errors: int
+
+
+class StockAgentRunOut(BaseModel):
+    """Result of a run of the stock agent."""
+
+    alerts_created: int

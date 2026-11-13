@@ -43,4 +43,7 @@ pythonpath = ["."]
 log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
-markers = ["e2e: builds and deploys the app locally on a freshly seeded database"]
+markers = [
+    "e2e: builds and deploys the app locally on a freshly seeded database",
+    "llm: calls the real language model (needs AGENTS_API_KEY, costs tokens, answers may vary)",
+]

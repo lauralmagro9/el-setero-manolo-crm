@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import { Spinner } from './components/ui'
 import { useAuth } from './lib/auth'
+import AlertsPage from './pages/Alerts'
 import CompanyDetailPage from './pages/CompanyDetail'
 import CompaniesPage from './pages/Companies'
 import ContactsPage from './pages/Contacts'
@@ -10,6 +11,7 @@ import InteractionsPage from './pages/Interactions'
 import InvoicesPage from './pages/Invoices'
 import NewInvoicePage from './pages/NewInvoice'
 import LoginPage from './pages/Login'
+import OrdersPage from './pages/Orders'
 import PipelinePage from './pages/Pipeline'
 import ProductsPage from './pages/Products'
 import RecordPage from './pages/Record'
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="interacciones" element={<InteractionsPage />} />
         <Route path="facturas" element={<InvoicesPage />} />
         <Route path="facturas/nueva" element={<NewInvoicePage />} />
+        <Route path="pedidos" element={<OrdersPage />} />
+        <Route path="alertas" element={<AlertsPage />} />
         <Route path="productos" element={<ProductsPage />} />
         <Route path="grabar" element={<RecordPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
