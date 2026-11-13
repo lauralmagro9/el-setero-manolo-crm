@@ -19,7 +19,7 @@ from ..logging_config import setup_logging
 from ..services import errors
 from .auth import bind_actor
 from .routers import (
-    companies, contacts, dashboard, geocoding, interactions, invoices, products, voice_notes,
+    agents, alerts, companies, contacts, dashboard, geocoding, interactions, invoices, order_drafts, orders, products, voice_notes,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,10 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         return JSONResponse({"detail": str(exc)}, status_code=code)
 
     api = APIRouter(prefix="/api", dependencies=[Depends(bind_actor)])
-    for module in (companies, contacts, interactions, dashboard, invoices, products, voice_notes, geocoding):
+    for module in (
+        companies, contacts, interactions, dashboard, invoices, products, voice_notes, geocoding, alerts, agents,
+        orders, order_drafts,
+    ):
         api.include_router(module.router)
     app.include_router(api)
 

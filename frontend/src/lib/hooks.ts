@@ -2,8 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEffect, useState } from 'react'
 import { api, apiBlob, qs } from './api'
 import type {
-  Company, CompanyDetail, Contact, CustomerStatus, Dashboard, Interaction, Invoice,
-  InvoiceConfig, InvoicePayload, InvoiceTotals, Page, PreviewLinePayload, Product,
+  Alert, Company, CompanyDetail, Contact, CustomerStatus, Dashboard, Interaction, Invoice,
+  InvoiceConfig, InvoicePayload, InvoiceTotals, Order, OrderAgentRun, OrderDraft, Page, PreviewLinePayload, Product,
 } from './types'
 
 export function useDashboard() {
@@ -161,3 +161,65 @@ export const saveInteraction = (id: string | undefined, data: Record<string, unk
 
 export const moveCompany = (id: string, customer_status: CustomerStatus | null) =>
   api<Company>(`/companies/${id}/customer-status`, { method: 'PUT', json: { customer_status } })
+
+/** Alerts raised by the agents (only the unread ones by default). */
+export function useAlerts(unreadOnly = true) {
+  return useQuery({
+    queryKey: ['alerts', unreadOnly],
+    queryFn: () => api<Page<Alert>>(`/alerts${qs({ unread: unreadOnly, page_size: 50 })}`),
+  })
+}
+
+/** Number of unread alerts, refreshed every minute, for the badge in the menu. */
+export function useUnreadAlertCount() {
+  return useQuery({
+    queryKey: ['alerts', 'unread-count'],
+    queryFn: () => api<{ unread: number }>('/alerts/unread-count'),
+    refetchInterval: 60_000,
+  })
+}
+
+export const markAlertRead = (id: string) => api<Alert>(`/alerts/${id}/read`, { method: 'POST' })
+export const markAllAlertsRead = () => api<{ unread: number }>('/alerts/read-all', { method: 'POST' })
+/** Retry the voice notes that are still pending (e.g. after a failure). */
+export const processPendingNotes = () => api<OrderAgentRun>('/agents/process-pending', { method: 'POST' })
+
+
+export interface OrderFilters { status?: string; company_id?: string; page?: number }
+
+export function useOrders(filters: OrderFilters) {
+  return useQuery({
+    queryKey: ['orders', filters],
+    queryFn: () => api<Page<Order>>(`/orders${qs({ ...filters })}`),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useOrder(id: string | null | undefined) {
+  return useQuery({ queryKey: ['order', id], queryFn: () => api<Order>(`/orders/${id}`), enabled: !!id })
+}
+
+export function useInteraction(id: string | null | undefined) {
+  return useQuery({ queryKey: ['interaction', id], queryFn: () => api<Interaction>(`/interactions/${id}`), enabled: !!id })
+}
+
+export const saveOrder = (id: string, data: Record<string, unknown>) =>
+  api<Order>(`/orders/${id}`, { method: 'PATCH', json: data })
+
+/** Orders the agent could not complete, waiting for the user. */
+export function useOrderDrafts() {
+  return useQuery({ queryKey: ['order-drafts'], queryFn: () => api<OrderDraft[]>('/order-drafts') })
+}
+
+export function useOrderDraft(id: string | null | undefined) {
+  return useQuery({ queryKey: ['order-draft', id], queryFn: () => api<OrderDraft>(`/order-drafts/${id}`), enabled: !!id })
+}
+
+export const saveOrderDraft = (id: string, data: Record<string, unknown>) =>
+  api<OrderDraft>(`/order-drafts/${id}`, { method: 'PATCH', json: data })
+
+/** Mark the draft as complete (saving the data sent) and create the order. */
+export const completeOrderDraft = (id: string, data: Record<string, unknown>) =>
+  api<Order>(`/order-drafts/${id}/complete`, { method: 'POST', json: data })
+
+export const discardOrderDraft = (id: string) => api<OrderDraft>(`/order-drafts/${id}/discard`, { method: 'POST' })

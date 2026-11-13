@@ -187,6 +187,8 @@ class Product(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     tax_rate: Mapped[Decimal] = mapped_column(PCT)
     target_net_margin: Mapped[Decimal] = mapped_column(PCT)
+    # Other names customers use for it (e.g. "chantarelas" for "rebozuelos"); the order agent matches them
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list, server_default=text("'[]'"))
 
     __table_args__ = (
         Index("uq_product_name", "name", unique=True, postgresql_where=text("deleted_at IS NULL")),
@@ -274,6 +276,38 @@ class Order(Base):
     def __str__(self) -> str:
         """Readable name shown in the interface."""
         return f"{self.company.name} · {self.requested_at:%Y-%m-%d}"
+
+
+class OrderDraft(Base):
+    """An order found in a voice note with data missing or doubtful: the user completes it.
+
+    Once the user marks it as complete the real order is created (`order_id`). `items` is a list of
+    {"product_id": str | None, "product_name": str | None, "quantity": str | None, "unit": str | None}
+    where `product_name` is what the customer said.
+    """
+
+    __tablename__ = "order_draft"
+
+    id: Mapped[uuid.UUID] = pk_column()
+    interaction_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("interaction.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("company.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contact.id"))
+    requested_delivery_date: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str | None] = mapped_column(Text)
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    reason: Mapped[str | None] = mapped_column(Text)  # what the agent could not resolve
+    status: Mapped[e.OrderDraftStatus] = mapped_column(
+        enum_column(e.OrderDraftStatus), default=e.OrderDraftStatus.PENDING, index=True
+    )
+    order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id"))
+
+    company: Mapped[Optional["Company"]] = relationship(foreign_keys=[company_id], lazy="joined")
+    contact: Mapped[Optional["Contact"]] = relationship(foreign_keys=[contact_id], lazy="joined")
+    interaction: Mapped[Optional["Interaction"]] = relationship(foreign_keys=[interaction_id], lazy="joined")
+
+    def __str__(self) -> str:
+        """Readable name shown in the interface."""
+        return f"Borrador de pedido · {self.company.name if self.company else '?'}"
 
 
 class OrderItem(Base):
@@ -451,3 +485,31 @@ class AgentExecution(Base):
     def __str__(self) -> str:
         """Readable name shown in the interface."""
         return f"{self.agent_name} · {self.started_at:%Y-%m-%d %H:%M}"
+
+
+class Alert(Base):
+    """A notice for the user raised by an agent (stock problem, lot about to expire, note to review)."""
+
+    __tablename__ = "alert"
+    # One alert per type + entity + day: the dedupe key stops an agent from repeating itself
+    __table_args__ = (
+        Index("uq_alert_dedupe_key", "dedupe_key", unique=True, postgresql_where=text("deleted_at IS NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = pk_column()
+    type: Mapped[e.AlertType] = mapped_column(enum_column(e.AlertType), index=True)
+    severity: Mapped[e.AlertSeverity] = mapped_column(enum_column(e.AlertSeverity))
+    message: Mapped[str] = mapped_column(Text)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("product.id"))
+    lot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("lot.id"))
+    company_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("company.id"))
+    order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id"))
+    interaction_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("interaction.id"))
+    # Extra structured data, e.g. the companies suggested for a lot about to expire
+    data: Mapped[dict | None] = mapped_column(JSON)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    dedupe_key: Mapped[str | None] = mapped_column(String(200))
+
+    def __str__(self) -> str:
+        """Readable name shown in the interface."""
+        return f"{self.type} · {self.message[:60]}"

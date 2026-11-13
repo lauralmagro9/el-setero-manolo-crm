@@ -160,3 +160,31 @@ class AgentStatus(StrEnum):
     SUCCESS = "correcta"
     ERROR = "error"
     NEEDS_REVIEW = "requiere_revisión"
+
+
+class AlertType(StrEnum):
+    """Kind of alert raised by an agent."""
+
+    INSUFFICIENT_STOCK = "stock_insuficiente"
+    EXPIRING_LOT = "lote_por_caducar"
+    LOW_STOCK = "stock_bajo"
+    NOTE_NEEDS_REVIEW = "nota_en_revision"
+    MISSING_DELIVERY_DATE = "pedido_sin_fecha_entrega"
+    NOTE_PROCESSED = "nota_procesada"
+    INCOMPLETE_ORDER = "pedido_incompleto"
+
+
+class AlertSeverity(StrEnum):
+    """How urgent an alert is."""
+
+    INFO = "info"
+    WARNING = "aviso"
+    CRITICAL = "critico"
+
+
+class OrderDraftStatus(StrEnum):
+    """State of an order the agent could not complete by itself."""
+
+    PENDING = "pendiente"
+    COMPLETED = "completada"
+    DISCARDED = "descartada"

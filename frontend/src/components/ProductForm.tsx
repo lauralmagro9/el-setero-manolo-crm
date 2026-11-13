@@ -17,6 +17,7 @@ const schema = z.object({
   base_unit: z.string().trim().min(1, 'Obligatorio'),
   tax_percent: z.string().refine(percent, 'Entre 0 y 99,99'),
   margin_percent: z.string().refine(percent, 'Entre 0 y 99,99'),
+  aliases: z.string(),
   is_active: z.boolean(),
 })
 type Values = z.infer<typeof schema>
@@ -35,14 +36,16 @@ export default function ProductForm({ product, onDone }: { product?: Product; on
       description: product?.description ?? '', base_unit: product?.base_unit ?? 'kg',
       tax_percent: product ? toPercent(product.tax_rate) : '10',
       margin_percent: product ? toPercent(product.target_net_margin) : '',
+      aliases: product?.aliases.join(', ') ?? '',
       is_active: product?.is_active ?? true,
     },
   })
 
   function submit(v: Values) {
-    const { tax_percent, margin_percent, ...rest } = v
+    const { tax_percent, margin_percent, aliases, ...rest } = v
+    const aliasList = aliases.split(',').map((a) => a.trim()).filter(Boolean)
     mutation.mutate(
-      { ...blankToNull(rest), tax_rate: toFraction(tax_percent), target_net_margin: toFraction(margin_percent) } as Partial<Product>,
+      { ...blankToNull(rest), aliases: aliasList, tax_rate: toFraction(tax_percent), target_net_margin: toFraction(margin_percent) } as Partial<Product>,
       { onSuccess: onDone },
     )
   }
@@ -59,6 +62,7 @@ export default function ProductForm({ product, onDone }: { product?: Product; on
         <Field label="IVA (%) *" error={errors.tax_percent?.message}><Input inputMode="decimal" {...register('tax_percent')} /></Field>
         <Field label="Margen neto objetivo (%) *" error={errors.margin_percent?.message}><Input inputMode="decimal" placeholder="30" {...register('margin_percent')} /></Field>
       </div>
+      <Field label="Otros nombres (separados por comas)"><Input placeholder="chantarelas, girolles" {...register('aliases')} /></Field>
       <Field label="Descripción"><Textarea {...register('description')} /></Field>
       <label className="flex items-center gap-2 text-sm font-medium">
         <input type="checkbox" className="size-5 accent-primary" {...register('is_active')} /> Activo (aparece al facturar)

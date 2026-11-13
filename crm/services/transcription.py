@@ -16,9 +16,9 @@ def transcribe_audio(data: bytes, mime_type: str) -> str:
     Raises TranscriptionError when the key is missing or Groq fails.
     """
     cfg = settings.transcription
-    api_key = cfg.groq_api_key
+    api_key = cfg.api_key
     if not api_key:
-        raise TranscriptionError("Falta la clave de Groq (TRANSCRIPTION_GROQ_API_KEY)")
+        raise TranscriptionError("Falta la clave para el LLM de transcripción (TRANSCRIPTION_API_KEY)")
     # Groq infers the audio format from the file name, so it needs the right extension
     extension = cfg.file_extensions.as_dict().get(mime_type, cfg.default_extension)
     options = {"language": cfg.language, "temperature": cfg.temperature, "response_format": "text"}

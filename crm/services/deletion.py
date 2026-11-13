@@ -29,14 +29,17 @@ DELETE_RULES: dict[type, list[tuple[type, str, str, str]]] = {
         (m.Interaction, "company_id", CASCADE, "interacciones"),
         (m.Order, "company_id", CASCADE, "pedidos"),
         (m.Lot, "supplier_company_id", DETACH, "lotes"),
+        (m.OrderDraft, "company_id", DETACH, "borradores de pedido"),
     ],
     m.Contact: [
         (m.Interaction, "contact_id", DETACH, "interacciones"),
         (m.Order, "contact_id", DETACH, "pedidos"),
+        (m.OrderDraft, "contact_id", DETACH, "borradores de pedido"),
     ],
     m.Interaction: [
         (m.Order, "source_interaction_id", DETACH, "pedidos"),
         (m.AgentExecution, "interaction_id", DETACH, "ejecuciones de agentes"),
+        (m.OrderDraft, "interaction_id", CASCADE, "borradores de pedido"),
     ],
     m.Product: [
         (m.OrderItem, "product_id", BLOCK, "líneas de pedido"),
@@ -50,6 +53,7 @@ DELETE_RULES: dict[type, list[tuple[type, str, str, str]]] = {
     m.Order: [
         (m.OrderItem, "order_id", CASCADE, "líneas"),
         (m.Invoice, "order_id", DETACH, "facturas"),
+        (m.OrderDraft, "order_id", DETACH, "borradores de pedido"),
     ],
     m.OrderItem: [
         (m.LotAllocation, "order_item_id", CASCADE, "reservas"),
@@ -65,7 +69,7 @@ LABELS = {
     m.Company: "Empresa", m.Contact: "Contacto", m.Interaction: "Interacción", m.Product: "Producto",
     m.Lot: "Lote", m.LotAdjustment: "Ajuste de lote", m.Order: "Pedido", m.OrderItem: "Línea de pedido",
     m.LotAllocation: "Reserva", m.Invoice: "Factura", m.InvoiceItem: "Línea de factura",
-    m.Payment: "Cobro", m.AgentExecution: "Ejecución de agente",
+    m.Payment: "Cobro", m.AgentExecution: "Ejecución de agente", m.OrderDraft: "Borrador de pedido",
 }
 
 

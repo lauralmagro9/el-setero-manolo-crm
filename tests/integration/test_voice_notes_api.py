@@ -92,20 +92,20 @@ class TestTranscribeAudio:
     """Tests for the Groq wrapper."""
 
     def test_0_missing_key_raises(self, monkeypatch):
-        """Without TRANSCRIPTION_GROQ_API_KEY a clear TranscriptionError is raised."""
+        """Without TRANSCRIPTION_API_KEY a clear TranscriptionError is raised."""
         from crm.config import settings
-        monkeypatch.setitem(settings.transcription.as_dict(), "groq_api_key", "")
+        monkeypatch.setitem(settings.transcription.as_dict(), "api_key", "")
         try:
             transcription.transcribe_audio(AUDIO, "audio/webm")
         except TranscriptionError as exc:
-            assert "TRANSCRIPTION_GROQ_API_KEY" in str(exc)
+            assert "TRANSCRIPTION_API_KEY" in str(exc)
         else:
             raise AssertionError("TranscriptionError not raised")
 
     def test_1_sends_audio_to_groq_whisper(self, monkeypatch):
         """The clip is sent to the configured Whisper model with a matching file name and language."""
         from crm.config import settings
-        monkeypatch.setitem(settings.transcription.as_dict(), "groq_api_key", "test-key")
+        monkeypatch.setitem(settings.transcription.as_dict(), "api_key", "test-key")
         sent = {}
 
         class FakeTranscriptions:
@@ -126,7 +126,7 @@ class TestTranscribeAudio:
     def test_2_groq_error_is_wrapped(self, monkeypatch):
         """Any SDK failure becomes a TranscriptionError."""
         from crm.config import settings
-        monkeypatch.setitem(settings.transcription.as_dict(), "groq_api_key", "test-key")
+        monkeypatch.setitem(settings.transcription.as_dict(), "api_key", "test-key")
 
         class BrokenGroq:
             def __init__(self, **kwargs):

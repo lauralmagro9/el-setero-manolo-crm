@@ -66,3 +66,20 @@ def make_product(session, name="Boletus edulis fresco", **overrides):
     session.add(product)
     session.commit()
     return product
+
+
+def make_order(session, company, product, quantity="5", status="Nuevo", **overrides):
+    """Insert and return an order of `company` with one line of `quantity` kg of `product`."""
+    order = m.Order(company_id=company.id, requested_at=datetime.now(), status=status, **overrides)
+    order.items.append(m.OrderItem(product_id=product.id, quantity=Decimal(quantity), unit="kg"))
+    session.add(order)
+    session.commit()
+    return order
+
+
+def make_voice_note(session, transcript="Alberto me ha pedido 5 kg de chantarelas", **overrides):
+    """Insert and return a pending voice note."""
+    data = {"source": "nota_de_voz", "transcript": transcript, "summary": None,
+            "processing_status": "pendiente", "type": "Otro"}
+    data.update(overrides)
+    return make_interaction(session, **data)

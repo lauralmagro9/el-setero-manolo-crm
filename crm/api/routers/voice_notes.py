@@ -3,13 +3,14 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from ... import enums as e
 from ... import schemas as s
 from ...config import settings
 from ...services import interactions as interactions_svc
+from ...services.agents import runner
 from ...services import transcription
 from ...services.errors import TranscriptionError
 from ...utils import normalize_mime_type
@@ -21,6 +22,8 @@ router = APIRouter(prefix="/voice-notes", tags=["voice-notes"])
 
 @router.post("", response_model=s.InteractionOut, status_code=status.HTTP_201_CREATED)
 def upload_voice_note(
+    request: Request,
+    background: BackgroundTasks,
     audio: UploadFile = File(...),
     company_id: uuid.UUID | None = Form(None),
     contact_id: uuid.UUID | None = Form(None),
@@ -31,8 +34,9 @@ def upload_voice_note(
 ):
     """Transcribe the audio with Groq and store the transcript as a pending interaction.
 
-    The audio is never written to disk or to the database. If the transcription fails nothing
-    is created (502), so the client can keep the recording and retry.
+    The order agent then processes the note in the background. The audio is never written to disk
+    or to the database. If the transcription fails nothing is created (502), so the client can keep
+    the recording and retry.
     """
     cfg = settings.voice_notes
     mime_type = normalize_mime_type(audio.content_type)
@@ -56,7 +60,10 @@ def upload_voice_note(
     if not text:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "No se detectó voz en el audio")
 
-    return interactions_svc.create_voice_note(
+    interaction = interactions_svc.create_voice_note(
         db, transcript=text, created_by=user.email, company_id=company_id,
         contact_id=contact_id, type=type, occurred_at=occurred_at,
     )
+    # The answer goes out now; the order agent reads the note afterwards
+    background.add_task(runner.process_voice_note_in_background, request.app.state.engine, interaction.id)
+    return interaction

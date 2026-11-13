@@ -1,7 +1,8 @@
-import { Building2, ContactRound, FileText, Package, KanbanSquare, LayoutDashboard, LogOut, MessageSquare, Mic, Moon, Sun } from 'lucide-react'
+import { Bell, Building2, ClipboardList, ContactRound, FileText, Package, KanbanSquare, LayoutDashboard, LogOut, MessageSquare, Mic, Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
+import { useUnreadAlertCount } from '@/lib/hooks'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ const NAV: { to: string; label: string; icon: typeof FileText; end?: boolean }[]
   { to: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
   { to: '/contactos', label: 'Contactos', icon: ContactRound },
   { to: '/interacciones', label: 'Notas', icon: MessageSquare },
+  { to: '/pedidos', label: 'Pedidos', icon: ClipboardList },
   { to: '/facturas', label: 'Facturas', icon: FileText, end: true },
   { to: '/productos', label: 'Productos', icon: Package },
 ]
@@ -27,6 +29,22 @@ function ThemeToggle() {
     <button onClick={toggle} aria-label="Cambiar tema" className="rounded-lg p-2 hover:bg-primary-soft">
       {dark ? <Sun className="size-5" /> : <Moon className="size-5" />}
     </button>
+  )
+}
+
+/** Bell with the number of unread alerts; it leads to the alerts page. */
+function AlertBell() {
+  const { data } = useUnreadAlertCount()
+  const unread = data?.unread ?? 0
+  return (
+    <NavLink to="/alertas" aria-label={`Alertas sin leer: ${unread}`} className="relative rounded-lg p-2 hover:bg-primary-soft">
+      <Bell className="size-5" />
+      {unread > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 flex min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[11px] font-bold text-white">
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
+    </NavLink>
   )
 }
 
@@ -61,6 +79,7 @@ export default function Layout() {
         <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="truncate text-xs text-muted" title={session?.user.email}>{session?.user.email}</span>
           <div className="flex">
+            <AlertBell />
             <ThemeToggle />
             <button onClick={() => supabase.auth.signOut()} aria-label="Cerrar sesión" className="rounded-lg p-2 hover:bg-primary-soft">
               <LogOut className="size-5" />
@@ -73,6 +92,7 @@ export default function Layout() {
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2 md:hidden">
           <img src="/logo.png" alt="El Setero" className="h-10" />
           <div className="flex">
+            <AlertBell />
             <ThemeToggle />
             <button onClick={() => supabase.auth.signOut()} aria-label="Cerrar sesión" className="rounded-lg p-2 hover:bg-primary-soft">
               <LogOut className="size-5" />
